@@ -1,4 +1,4 @@
-import { withAuth } from "@/lib/auth/protect";
+import { withAuth } from "@/server/auth";
 import { identityOf, json } from "@/server/identity";
 import { withDb } from "@/server/store";
 

@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell, useMe } from "@/components/AppShell";
 import { DecryptResult, type Outcome } from "@/components/DecryptResult";
 import { LeakedCopyTest } from "@/components/LeakedCopyTest";
-import { useApi } from "@/lib/client/api";
-import { decryptForRecord, readSession } from "@/lib/tide/relationship";
+import { usePlatform } from "@/lib/client/platform";
 import { tideErrorText } from "@/lib/client/tideErrors";
 
 type Rec = { id: string; label: string; group: string; owner: string; ciphertext: string | null; policy: string | null };
@@ -20,7 +19,7 @@ export default function ClinicianPage() {
 
 function Clinician() {
   const me = useMe();
-  const api = useApi();
+  const { api, decrypt, credentialGroups } = usePlatform();
   const [records, setRecords] = useState<Rec[]>([]);
   const [opened, setOpened] = useState<Record<string, Outcome | null>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -35,12 +34,8 @@ function Clinician() {
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-    try {
-      setDokenGroups(readSession().groups);
-    } catch {
-      setDokenGroups(null);
-    }
-  }, [api, me?.username]);
+    setDokenGroups(credentialGroups());
+  }, [api, me?.username, credentialGroups]);
 
   useEffect(() => {
     if (me) load();
@@ -52,7 +47,7 @@ function Clinician() {
     if (!rec.ciphertext || !rec.policy) return;
     setBusy(rec.id);
     try {
-      const text = await decryptForRecord(rec.ciphertext, rec.id, rec.policy);
+      const text = await decrypt(rec.ciphertext, rec.id, rec.policy);
       setOpened((o) => ({ ...o, [rec.id]: { kind: "ok", text } }));
       await api("/api/events", { method: "POST", body: JSON.stringify({ type: "decrypt_ok", recordId: rec.id, detail: "Opened shared record" }) }).catch(() => undefined);
     } catch (err) {
@@ -81,7 +76,7 @@ function Clinician() {
       ) : (
         <div className="grid">
           {records.map((rec) => (
-            <section key={rec.id} className="card" aria-labelledby={`c-${rec.id}`}>
+            <section key={rec.id} className="card record" data-record={rec.id} aria-labelledby={`c-${rec.id}`}>
               <h3 id={`c-${rec.id}`}>{rec.label}</h3>
               <p className="meta">
                 From {rec.owner} · <span className="mono">{rec.id}</span> · group <span className="mono">{rec.group}</span>
@@ -101,7 +96,7 @@ function Clinician() {
       <div className="card">
         <p className="meta">What the app and the network see for {me.displayName} ({me.username}).</p>
         <p>Groups in access token: {me.groups.length ? me.groups.map((g) => <span key={g} className="pill info">{g} </span>) : <span className="meta">none</span>}</p>
-        <p>Groups in Tide doken: {dokenGroups === null ? <span className="meta">unavailable</span> : dokenGroups.length ? dokenGroups.map((g) => <span key={g} className="pill info">{g} </span>) : <span className="meta">none</span>}</p>
+        <p>Groups in the credential the network checks: {dokenGroups === null ? <span className="meta">unavailable</span> : dokenGroups.length ? dokenGroups.map((g) => <span key={g} className="pill info">{g} </span>) : <span className="meta">none</span>}</p>
         <p>Crypto roles: {me.cryptoRoles.length ? me.cryptoRoles.join(", ") : <span className="meta">none</span>}</p>
         <div className="row">
           <button onClick={load}>Refresh</button>

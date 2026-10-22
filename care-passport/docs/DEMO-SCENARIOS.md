@@ -1,41 +1,54 @@
 # Care Passport — Two-minute demo
 
-Status: recording plan. The organiser's suggested structure is: the possibility → the
+Status: recording plan, simulated build (22 Oct, 16:50). The organiser's suggested structure is: the possibility → the
 constraint → the prototype and TideCloak's role → what changes for users. Every refusal
 shown must be the real Tide network message, never a mocked screen.
 
-## Cast and starting state (separate browser profiles, already signed in)
+## Mode used for the video
 
-| Alias | Labelled as | Crypto role | Groups at start |
-|---|---|---|---|
-| `patient-a` | Linh Tran, patient (synthetic) | `_tide_encryptor`, `_tide_decryptor` | `/pa-referral`, `/pa-careplan`, `/pa-pathology` |
-| `gp-a` | Dr Alex Nguyen, GP | `_tide_decryptor` | none |
-| `gp-b` | Dr Bao Pham, GP | `_tide_decryptor` | none |
-| `physio-a` | Sam Le, physiotherapist | `_tide_decryptor` | `/pa-careplan` |
-| `admin`, `steward-b`, `steward-c` | Care-governance stewards (quorum 2 of 3) | none | none |
+Recorded in the **simulated build** (`npm run dev:sim`, see [SIMULATION](SIMULATION.md)), because
+the realm's licence refused every Tide account after the first. The red SIMULATED banner stays on
+screen, and the narration says so once. One Chromium window, one tab per identity
+(`http://localhost:4300/?as=<username>`).
 
-Before recording: run every check in [SECURITY-ACCEPTANCE](SECURITY-ACCEPTANCE.md) A1–A8.
-Physio has opened the care plan once. GP A is not yet in `/pa-referral`. Allow pop-ups
-for the enclave. Open the TideCloak console beside the app.
+## Before recording (not filmed, about 3 minutes)
 
-## Script (120 s)
+1. Tab `admin` → **Steward** → **Sign policy** for all three records (OK in the "Simulated Tide
+   enclave" dialog).
+2. Tab `patient-a` → **Patient** → **Write synthetic content** on all three cards → **Open** all three.
+3. Tab `physio-a` → **Clinician** → **Open** the care plan once.
+4. Terminal ready in `care-passport/`: `jq '.records[] | {id, ciphertext: .ciphertext[0:48]}' data/sim-app-db.json`
+5. Browser zoom 110 %, bookmarks bar hidden, notifications off. Record in clips if easier; they are
+   joined afterwards.
 
-| Time | Screen | Narration (keep it short) |
+## Script (about 120 s)
+
+| Time | Tab and actions | Narration |
 |---|---|---|
-| 00:00–00:12 | Patient's three records, decrypted in the patient's browser | "A referral shouldn't hand over your whole history, or trust the platform with all of it." |
-| 00:12–00:25 | `data/app-db.json`: ciphertext only | "Care Passport's server stores only ciphertext. It holds no key, and neither does any one admin." |
-| 00:25–00:55 | Patient shares the referral with Dr Alex → a steward adds Dr Alex to the referral's care group (1 of 2) → a second steward approves (2 of 2) → Dr Alex signs in and opens it | "Sharing is a governed change: two of three stewards must approve, then Tide's network releases the referral to Dr Alex only." (Use a labelled time cut while approvals run.) |
-| 00:55–01:10 | Dr Bao (same GP role) runs the leaked-copy test on the referral → refusal text | "Even with the ciphertext and policy, another GP is refused by the network, not by our API." |
-| 01:10–01:35 | Patient withdraws Sam's care-plan access → stewards approve removal → Sam signs in again → open → refused | "The next decryption is refused. What Sam already read can't be recalled, and we say so." |
-| 01:35–01:52 | One steward adds themselves to the pathology group → change request stuck at 1 of 2 → their decryption is refused | "No single administrator can grant themselves a patient's pathology." |
-| 01:52–02:00 | Patient's sharing receipts | "The patient decides, the network enforces, and nobody can override it alone." |
+| 0:00–0:12 | `patient-a` → Patient: three opened records (referral, care plan, pathology) | "Linh is between a GP referral and physiotherapy. Each clinician needs one record, not her whole history." |
+| 0:12–0:22 | Terminal: the `jq` command shows ciphertext only | "Care Passport's server stores only ciphertext. Normally whoever runs the platform, or one admin, could still read or re-share it." |
+| 0:22–0:30 | Back to `patient-a`: referral card → Share with **Dr Alex Nguyen**, purpose **Referral consultation** → **Request access** | "Linh asks to share just the referral with Dr Alex. The request itself grants nothing." |
+| 0:30–0:42 | `admin` → Steward → Patient requests → **File change request** → Change requests → **Approve** (1/2, Pending) → `steward-b` → **Approve** (2/2, Committed) | "Adding Dr Alex to the referral's care group is a governed change: two of three stewards must approve." |
+| 0:42–0:52 | `gp-a` → **Sign in again** → Clinician → Referral → **Open** → plaintext | "With a fresh credential, the network releases the referral to Dr Alex, and only the referral." |
+| 0:52–1:05 | `gp-b` → Clinician → Prove it → Record **Referral** → **Try to decrypt the leaked copy** → refusal | "Dr Bao is also a GP and even holds a leaked copy and the policy. Refused: he is not in this record's care group." |
+| 1:05–1:12 | `patient-a` → care plan card → Withdraw from **Sam Le** → **Withdraw future access** → confirm | "Therapy is over. Linh withdraws Sam's access." |
+| 1:12–1:20 | `admin` → File a change: `physio-a` / remove from / `/pa-careplan` → **File change request** → **Approve** → `steward-b` → **Approve** (Committed) | "Again, two stewards." |
+| 1:20–1:32 | `physio-a` → **Sign in again** → Clinician → Prove it → **Care plan** → **Try to decrypt** → refusal | "Sam's next decryption is refused. What he already read can't be recalled, and we say so." |
+| 1:32–1:48 | `admin` → File a change: `admin` / add to / `/pa-pathology` → **File change request** → **Approve** → stays **1/2 Pending** → Lone-administrator test → **Pathology** → **Try to decrypt** → refusal | "One steward tries to give themselves Linh's pathology. Stuck at one of two, and still refused." |
+| 1:48–2:00 | `patient-a` → Sharing requests and Activity | "The patient decides, a quorum executes, and the network enforces. No single admin can override it. Shown here in simulated mode; the real TideCloak integration is in the repo." |
 
 If a step fails during recording, show the honest result and fix the claim. Never splice
 in a fabricated success or refusal.
 
+## Real Tide build (when the licence allows more accounts)
+
+Cast as before: `patient-a`, `gp-a`, `gp-b`, `physio-a` and three stewards, each in their own
+browser profile. Group changes are made in the TideCloak console and approved in the enclave.
+Run SECURITY-ACCEPTANCE A1–A8 first.
+
 ## Recording and export
 
-1. Record in OBS at 1920×1080, 30 fps, to `raw.mkv`. `*.mkv` is gitignored.
+1. Record in OBS at 1920×1080, 30 fps, to `raw.mkv` (or several clips). `*.mkv` is gitignored.
 2. Trim and compress to the repository root:
 
    ```bash

@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import provisioned from "../../fixtures/records.json";
-import { useApi } from "@/lib/client/api";
-import { decryptForRecord } from "@/lib/tide/relationship";
+import { usePlatform } from "@/lib/client/platform";
 import { tideErrorText } from "@/lib/client/tideErrors";
 import { DecryptResult, type Outcome } from "./DecryptResult";
 
@@ -12,7 +11,7 @@ type Leaked = { id: string; label: string; group: string; ciphertext: string | n
 // Simulates a full database leak: the server hands this user the ciphertext AND the policy of a
 // record they were never given. Only the Tide network's check stands between them and the text.
 export function LeakedCopyTest({ title = "Leaked-copy test" }: { title?: string }) {
-  const api = useApi();
+  const { api, decrypt } = usePlatform();
   const [recordId, setRecordId] = useState(provisioned[0].id);
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -27,7 +26,7 @@ export function LeakedCopyTest({ title = "Leaked-copy test" }: { title?: string 
         return;
       }
       try {
-        const text = await decryptForRecord(record.ciphertext, record.id, record.policy);
+        const text = await decrypt(record.ciphertext, record.id, record.policy);
         setOutcome({ kind: "ok", text });
         await api("/api/events", { method: "POST", body: JSON.stringify({ type: "decrypt_ok", recordId: record.id, detail: "Leaked-copy test decrypted" }) }).catch(() => undefined);
       } catch (err) {

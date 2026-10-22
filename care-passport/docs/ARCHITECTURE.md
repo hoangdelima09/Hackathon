@@ -1,7 +1,7 @@
 # Care Passport — Architecture
 
 Status: design fixed on 22 October 2026 from Tide's documented `relationship-attestation`
-pattern; **not yet running in this checkout**. Security statements below are targets
+pattern and implemented in `src/` (build passes). Security statements below are targets
 until the gates in [TIDE-INTEGRATION](TIDE-INTEGRATION.md) are recorded in `EVIDENCE.md`.
 
 ## Product boundary
@@ -45,6 +45,68 @@ The security boundary is the network check at decryption time. The demo's
   a receipt. Membership enforces it. Purpose and requested expiry are **not** enforced by
   Tide in the MVP. Signing policies with an expiry is possible but ends access for the
   whole group.
+
+## Authorization rules
+
+Where each rule is enforced, strongest first:
+
+- **N**, the Tide network: ORKs run `RelationshipAttestation:1` on every encryption and
+  decryption. Nothing in this app can bypass it.
+- **Q**, TideCloak IGA: the change request commits only at quorum. That is 2 of 3 stewards
+  once all three are linked, and 1 during setup.
+- **E**, the steward's own Tide enclave approval.
+- **A**, the app API after `verifyTideJWT` and DPoP. A filter for convenience, never a grant.
+
+### Who can read or write record content (N)
+
+| Record (tag = group) | Patient A | GP A | GP B | Physio A | Any steward | Server / operator |
+|---|---|---|---|---|---|---|
+| Referral `pa-referral` | Read, write | Read once added to `/pa-referral` | Never | Never | Never | Ciphertext only |
+| Care plan `pa-careplan` | Read, write | Never | Never | Read until removed from `/pa-careplan` | Never | Ciphertext only |
+| Pathology `pa-pathology` | Read, write | Never | Never | Never | Never | Ciphertext only |
+
+To decrypt, the caller needs the `_tide_decryptor` realm role, membership of the record's
+group (the `groups` claim) and a signed policy whose only tag is the record id. To encrypt,
+they need `_tide_encryptor` under the same conditions. Only Patient A holds
+`_tide_encryptor`, so clinicians can never write or overwrite content. Stewards hold no
+crypto role and belong to no group.
+
+### Who can do or approve what
+
+| Action | Started by | Must approve | Enforced by |
+|---|---|---|---|
+| Write or replace a record | Patient (owner), in their browser | Nobody; the network checks role and group | N, plus A (`PUT` is owner-only) |
+| Open a record | Anyone | Nobody; the network decides | N |
+| Request a share or withdrawal | Patient (owner) | Nobody: it is a receipt and grants nothing | A |
+| **Share**: add a clinician to a care group | A steward, in the TideCloak console | **2 of 3 stewards** | Q |
+| **Withdraw**: remove a clinician from a care group | A steward | **2 of 3 stewards** | Q |
+| Grant or revoke `_tide_decryptor` / `_tide_encryptor` | A steward | **2 of 3 stewards** | Q |
+| Add a steward (`tide-realm-admin`), change the threshold | A steward | **2 of 3 stewards** (`REGEN_ADMIN_POLICY`) | Q |
+| Sign a record's Group policy | A steward on `/steward` | That steward's enclave approval, authorised by the realm admin policy | E, then N |
+| Mark a request done or rejected; list all requests and events | Steward | Nobody: bookkeeping | A |
+| Leaked-copy test (`/api/demo/leaked/:id`) | Anyone signed in | Nobody: it hands out ciphertext and policy on purpose | A; decryption is still N |
+
+What **no single party** can do:
+
+- A lone steward cannot add anyone to a group, grant themselves `_tide_decryptor`, or read
+  any record.
+- The operator, holding the whole database, cannot decrypt.
+- A GP cannot use another GP's grant.
+
+Whether a lone steward can sign a *new* policy once the threshold is 2 is untested (B3 in
+SECURITY-ACCEPTANCE). Until it is tested, the second barrier is that the steward still
+lacks the decrypt role. The patient cannot grant alone either; that would need a custom
+contract deployed by Tide.
+
+### What the server cannot read
+
+| Data | Where it lives | Server or operator can read it? |
+|---|---|---|
+| Record content (referral, care plan, pathology text) | Tide ciphertext in `data/app-db.json`; plaintext only in an authorised browser's memory | **No.** No decryption key exists outside the Tide network |
+| Signed record policies | `data/app-db.json` | Yes. They are useless without group membership and the role |
+| Record ids, labels, group names and memberships, requests, purposes, events, timing | App store and TideCloak | Yes. Metadata, stated as a limit |
+| Access tokens, Tide passwords, keys | Browser and Tide enclave | Never stored or logged by the app |
+| Master-admin credential | `.env` and bootstrap scripts only | Held by the operator, outside IGA (a limit) |
 
 ## Flows
 

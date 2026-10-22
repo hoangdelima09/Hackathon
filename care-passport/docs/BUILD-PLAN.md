@@ -14,6 +14,24 @@ README ≤300 từ. Bản demo phải chứng minh được bốn khoảnh khắ
 4. **Một admin đơn lẻ** tự thêm mình vào nhóm pathology: change request bị kẹt ở 1/2,
    admin không giải mã được. Server chỉ lưu ciphertext.
 
+## 0. Cập nhật lúc 15:30: trạng thái thật và lịch còn lại
+
+Đã xong: scaffold, SDK (bản mới nhất, một bản duy nhất sau dedupe), code Phase C, realm `care-passport`
+(license, IGA, client cổng 4300, mapper `groups`), 7 user, crypto role và membership
+`/pa-*` (do `scripts/provision-demo.sh` tạo khi realm còn ở chế độ FirstAdmin). Còn thiếu: **chưa ai
+link tài khoản Tide**. Tiến trình init đã chết lúc đang poll nên chưa có `data/tidecloak.json`.
+Không chạy lại init. Dùng `scripts/finish-init.sh` (bước sau link của init) và
+`scripts/finish-init.sh --grant-admin` (cấp `tide-realm-admin`, chuyển realm sang multi-admin).
+
+| Giờ | Việc | Ai |
+|---|---|---|
+| 15:35–15:55 | H3 (link admin) → finish-init → `npm run dev` → doctor. H4: link 6 tài khoản còn lại **trước khi flip** | User + AI |
+| 15:55–16:10 | `--grant-admin`, ký 3 policy ở `/steward` (G0), patient ghi và mở (G1), physio mở care plan | User thao tác, AI ghi EVIDENCE |
+| 16:10–16:20 | Cấp `tide-realm-admin` cho steward-b/c (admin duyệt), kiểm tra CR mới có threshold 2 | User |
+| 16:20–16:50 | **Quay video trong lúc chạy G2–G4** (share GP A 2/3, GP B leaked test, rút quyền physio, admin tự thêm mình bị kẹt 1/2) | User quay, AI hướng dẫn |
+| 16:50–17:10 | ffmpeg → `demo.mp4`, EVIDENCE, README cuối | AI |
+| 17:10–17:30 | User bảo commit/push, kiểm tra repo public, **nộp form trước 17:30** | User |
+
 ## 1. Việc chỉ người dùng làm được (AI không được tự làm thay)
 
 | # | Khi nào | Việc |

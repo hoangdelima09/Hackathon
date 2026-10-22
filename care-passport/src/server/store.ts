@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import provisioned from "../../fixtures/records.json";
+import { SIMULATED } from "@/lib/mode";
 
 // App store: ciphertext, signed policies, requests and events. Never plaintext or keys.
 // One JSON file is enough for the demo; writes are serialized and replaced atomically.
@@ -38,7 +39,8 @@ export type EventRow = {
 };
 type Db = { records: RecordRow[]; policies: PolicyRow[]; requests: RequestRow[]; events: EventRow[] };
 
-const DB_PATH = join(process.cwd(), "data", "app-db.json");
+// A simulated build keeps its own store so simulated ciphertext never mixes with real Tide ciphertext.
+const DB_PATH = join(process.cwd(), "data", SIMULATED ? "sim-app-db.json" : "app-db.json");
 
 function emptyDb(): Db {
   return {

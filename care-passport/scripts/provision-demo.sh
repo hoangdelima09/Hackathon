@@ -18,11 +18,11 @@ REALM="${REALM_NAME:-care-passport}"
 API="$TIDECLOAK_URL/admin/realms/$REALM"
 
 # username : realm roles (comma separated) : groups (comma separated)
+# Five accounts in total with admin: the realm's free-tier licence allows 5 user accounts
+# (getLicenseDetails: currentUserAcc 5). gp-b and physio-a were dropped on 22 Oct for that reason.
 USERS=(
   "patient-a:_tide_encryptor,_tide_decryptor:/pa-referral,/pa-careplan,/pa-pathology"
   "gp-a:_tide_decryptor:"
-  "gp-b:_tide_decryptor:"
-  "physio-a:_tide_decryptor:/pa-careplan"
   "steward-b::"
   "steward-c::"
 )

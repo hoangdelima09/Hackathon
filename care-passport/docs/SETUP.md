@@ -36,9 +36,19 @@ CLIENT_APP_URL=http://localhost:4300 npm run init
 ```
 
 The script starts `tideorg/tidecloak-dev:latest` on port 8080. It then creates the
-`care-passport` realm, licenses it, enables IGA and writes `data/tidecloak.json`.
-It pauses at an **invite link**: open it and create the first steward's Tide account.
+`care-passport` realm, licenses it and enables IGA. It pauses at an **invite link**.
 **Running it again deletes the realm and all enrolled accounts.**
+
+While init waits at the invite link (the realm is still in FirstAdmin mode), create the
+demo identities, their crypto roles and care-group memberships in a second terminal:
+
+```bash
+bash scripts/provision-demo.sh   # prints one invite link per user (valid 12 h)
+```
+
+Open the admin link and create the first steward's Tide account. Init then exports
+`data/tidecloak.json`. If the init process died while it was polling, do **not** re-run
+it. Run `bash scripts/finish-init.sh` instead, which performs init's post-link steps only.
 
 ## 3. Run the app
 
@@ -56,18 +66,16 @@ bash .tide-pack/templates/shared/tide-doctor.sh --url http://localhost:4300
 
 ## 4. Demo identities and governance (in this order)
 
-1. In separate browser profiles, sign in to the app once as each of `patient-a`, `gp-a`,
-   `gp-b`, `physio-a`, `steward-b` and `steward-c` (each creates a Tide account).
-2. As the first steward, in the TideCloak admin console (`http://localhost:8080/admin`,
-   realm `care-passport`):
-   - Realm roles: `patient-a` gets `_tide_encryptor` + `_tide_decryptor`; `gp-a`, `gp-b`
-     and `physio-a` get `_tide_decryptor` only.
-   - Groups `/pa-referral`, `/pa-careplan`, `/pa-pathology`: add `patient-a` to all
-     three and `physio-a` to `/pa-careplan`.
-   - Change requests: approve everything pending (threshold is 1 at this point).
-3. In the app at `/steward`, sign one policy per record (three enclave approvals).
+1. In a separate browser profile for each one, open the invite links for `patient-a`, `gp-a`,
+   `gp-b`, `physio-a`, `steward-b` and `steward-c` and create their Tide accounts. Do this
+   **before step 2**, while the realm is still in FirstAdmin mode.
+2. `bash scripts/finish-init.sh --grant-admin` grants `tide-realm-admin` to the first steward.
+   This flips the realm to multi-admin, so every governed change after it needs an enclave
+   approval in the TideCloak console (`http://localhost:8080/admin/care-passport/console/`).
+3. As the first steward, at `/steward` in the app, sign one policy per record (three
+   enclave approvals).
 4. Grant `tide-realm-admin` (client `realm-management`) to `steward-b` and `steward-c`,
-   then approve. Confirm that a new change request shows **threshold 2**.
+   and approve in the console. Confirm that a new change request shows **threshold 2**.
 5. Every user signs out and in again so their tokens carry the new roles and groups.
 
 ## 5. Try it

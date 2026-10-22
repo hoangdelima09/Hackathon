@@ -1,6 +1,6 @@
 # Care Passport — Application API (MVP)
 
-Status: contract for the MVP; **not implemented yet**. These are Care Passport routes,
+Status: implemented in `src/app/api/` (build passes); not yet run against the realm. These are Care Passport routes,
 not Tide APIs. They organise ciphertext and requests; **the Tide network, not this API,
 decides who can decrypt** (see [TIDE-INTEGRATION](TIDE-INTEGRATION.md)).
 
@@ -38,14 +38,19 @@ Writes are serialized: load, change, then write to a temp file and rename it int
 | `GET /api/directory` | Patient | Clinicians only: `[{ username, displayName, kind }]` |
 | `GET /api/records` | Signed in | Patient: own records. Others: records whose `group` is in the caller's verified `groups` claim. Each item: `{ id, label, group, ciphertext, policy }` (`policy` only if signed) |
 | `PUT /api/records/:id` | Record owner | Body `{ ciphertext }`. 404 if the record is not provisioned or not theirs |
-| `GET /api/admin-policy` | Steward | Fetches `GET {auth-server-url}/admin/realms/care-passport/iga/role-policies/name/tide-realm-admin` **with the caller's own token** and returns `{ policy }` (base64) |
-| `POST /api/policies` | Steward | Body `{ recordId, policy }`. Record must be provisioned. Store the subject and contract id shown by `describeRelationshipPolicy`, decoded in the steward's browser if the SDK will not run on the server. The network enforces the policy regardless |
+| `GET /api/policies` | Steward | Per record: `{ id, label, group, owner, hasContent, policy: { subject, signedBy, createdAt } \| null }`. No ciphertext |
+| `POST /api/policies` | Steward | Body `{ recordId, policy, subject }`. The record must be provisioned and `subject` must equal its group. The steward's browser checks `describeRelationshipPolicy` (contract `RelationshipAttestation:1`, record, subject) before posting; the network enforces the signed bytes regardless |
 | `POST /api/requests` | Record owner | Body `{ recordId, recipient, action, purpose }`; the recipient must be a directory clinician. Creates status `requested` and an event |
 | `GET /api/requests` | Patient (own) or steward (all) | Lists requests, newest first |
 | `PATCH /api/requests/:id` | Steward | Body `{ status: "done" \| "rejected", note }`. Bookkeeping after acting in TideCloak; grants nothing |
 | `GET /api/demo/leaked/:recordId` | Signed in | **Demo only.** Returns `{ ciphertext, policy }` for any record, simulating a full database leak or compromised server. Logs an event |
-| `POST /api/events` | Signed in | Client report `{ recordId, type: "decrypt_ok" \| "decrypt_refused", detail }`. The detail is the refusal `cause`, never plaintext |
-| `GET /api/events` | Patient (own records) or steward (all) | Activity list labelled by `source` |
+| `POST /api/events` | Signed in | Client report `{ recordId, type: "decrypt_ok" \| "decrypt_refused" \| "encrypt_refused", detail }` (max 500 chars). The detail is the refusal `cause`, never plaintext |
+| `GET /api/events` | Patient (own records), steward (all), others (own reports) | Activity list labelled by `source`, newest 100 |
+
+The realm admin policy that `signRelationshipPolicy` needs is **not** an app route. The
+steward's browser fetches `GET {auth-server-url}/admin/realms/care-passport/iga/role-policies/name/tide-realm-admin`
+(field `policy`, base64) straight from TideCloak with its own DPoP-bound token
+(`src/app/steward/page.tsx`), so the app server never relays steward credentials or approvals.
 
 ## Errors
 

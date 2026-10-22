@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AppShell, useMe } from "@/components/AppShell";
 import { DecryptResult, type Outcome } from "@/components/DecryptResult";
-import { useApi } from "@/lib/client/api";
-import { decryptForRecord, encryptForRecord } from "@/lib/tide/relationship";
+import { usePlatform } from "@/lib/client/platform";
 import { tideErrorText } from "@/lib/client/tideErrors";
 import { SYNTHETIC_CONTENT } from "@/lib/client/synthetic";
 
@@ -23,7 +22,7 @@ export default function PatientPage() {
 
 function Patient() {
   const me = useMe();
-  const api = useApi();
+  const { api, encrypt, decrypt } = usePlatform();
   const [records, setRecords] = useState<Rec[]>([]);
   const [requests, setRequests] = useState<Req[]>([]);
   const [purposes, setPurposes] = useState<string[]>([]);
@@ -67,7 +66,7 @@ function Patient() {
     if (!rec.policy) return;
     setBusy(`write:${rec.id}`);
     try {
-      const ciphertext = await encryptForRecord(SYNTHETIC_CONTENT[rec.id] ?? `Synthetic ${rec.label}`, rec.id, rec.policy);
+      const ciphertext = await encrypt(SYNTHETIC_CONTENT[rec.id] ?? `Synthetic ${rec.label}`, rec.id, rec.policy);
       await api(`/api/records/${rec.id}`, { method: "PUT", body: JSON.stringify({ ciphertext }) });
       await load();
     } catch (err) {
@@ -81,7 +80,7 @@ function Patient() {
     if (!rec.ciphertext || !rec.policy) return;
     setBusy(`open:${rec.id}`);
     try {
-      const text = await decryptForRecord(rec.ciphertext, rec.id, rec.policy);
+      const text = await decrypt(rec.ciphertext, rec.id, rec.policy);
       setOpened((o) => ({ ...o, [rec.id]: { kind: "ok", text } }));
     } catch (err) {
       setOpened((o) => ({ ...o, [rec.id]: { kind: "refused", raw: tideErrorText(err) } }));
@@ -95,7 +94,7 @@ function Patient() {
     if (action === "withdraw") {
       const ok = window.confirm(
         `Stop new access to "${rec.label}" for ${nameOf(recipient)}?\n\nCopies already viewed cannot be erased. ` +
-          "The withdrawal takes effect when two of three stewards approve it in TideCloak and the clinician's session refreshes."
+          "The withdrawal takes effect when two of three stewards approve it and the clinician's credential refreshes."
       );
       if (!ok) return;
     }
@@ -195,7 +194,7 @@ function RecordCard(props: {
   const sharedWith = [...new Set(requests.filter((r) => r.action === "share" && r.status !== "rejected").map((r) => r.recipient))];
 
   return (
-    <section className="card" aria-labelledby={`h-${rec.id}`}>
+    <section className="card record" data-record={rec.id} aria-labelledby={`h-${rec.id}`}>
       <h3 id={`h-${rec.id}`}>{rec.label}</h3>
       <p className="meta">
         Record <span className="mono">{rec.id}</span> · care group <span className="mono">{rec.group}</span>

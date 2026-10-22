@@ -1,2 +1,0 @@
-Drop your contract .cs file here, or point the harness at it:
-  ./check.sh ../../src/contracts/MyContract.cs

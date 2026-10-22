@@ -1,6 +1,8 @@
 # Care Passport — TideCloak integration
 
-Status: **design fixed from Tide's agent pack; not yet executed in this checkout.**
+Status: **design fixed from Tide's agent pack and implemented in `src/`; gates not yet run.**
+The realm is bootstrapped: users, crypto roles and `/pa-*` memberships were provisioned by
+`scripts/provision-demo.sh` while the realm was in FirstAdmin mode.
 Sources were read on 22 October 2026 from the Tide MCP (`@tideorg/mcp` 1.9.33): scenario
 `relationship-attestation`, template `templates/relationship-attestation/relationship.ts`,
 canon `custom-contracts`, `iga-change-requests-api` and `tidecloak-bootstrap`. Ask the MCP
@@ -60,7 +62,8 @@ Copy `templates/relationship-attestation/relationship.ts` into `src/lib/tide/`. 
 
 `adminPolicy` comes from
 `GET {auth-server-url}/admin/realms/{realm}/iga/role-policies/name/tide-realm-admin`
-(field `policy`, base64), fetched by the app server with the **steward's own token**.
+(field `policy`, base64). The steward's **browser** fetches it directly from TideCloak with
+its own DPoP-bound token (`IAMService.secureFetch`), so the app server never relays it.
 
 A refusal arrives as `TIDE-TIDEJS-NET-THRESHOLD_FAILURE` ("Could not reach enough VVK
 ORKs"). That **is** the contract's refusal, not an outage: show the `cause` text

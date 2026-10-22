@@ -1,0 +1,21 @@
+{
+  "realm": "care-passport",
+  "auth-server-url": "http://localhost:8080/",
+  "ssl-required": "external",
+  "resource": "care-passport-client",
+  "public-client": true,
+  "confidential-port": 0,
+  "jwk": { "keys": [] },
+  "backgroundUrl": "",
+  "logoUrl": "",
+  "homeOrkUrl": "",
+  "vendorId": "SIMULATED-PLACEHOLDER-not-a-real-adapter",
+  "gVVK": "",
+  "vvkId": "",
+  "orkUrl": "",
+  "payerPublic": "",
+  "obfGVVK": "",
+  "gVRKCertificate": "",
+  "thresholdT": 0,
+  "thresholdN": 0
+}

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "./providers";
+import { SimPlatformProvider, TidePlatformProvider } from "@/lib/client/platform";
+import { SIMULATED } from "@/lib/mode";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -15,7 +17,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Providers>{children}</Providers>
+        {SIMULATED ? (
+          <SimPlatformProvider>{children}</SimPlatformProvider>
+        ) : (
+          <Providers>
+            <TidePlatformProvider>{children}</TidePlatformProvider>
+          </Providers>
+        )}
       </body>
     </html>
   );

@@ -1,4 +1,4 @@
-import { withAuth } from "@/lib/auth/protect";
+import { withAuth } from "@/server/auth";
 import { identityOf, json } from "@/server/identity";
 
 export const GET = withAuth(async (_req, jwt) => {
