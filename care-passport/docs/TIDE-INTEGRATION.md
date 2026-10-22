@@ -1,107 +1,139 @@
-# Care Passport — TideCloak Integration
+# Care Passport — TideCloak integration
 
-## Integration Pattern: Session-Bound Emergent Authority
+Status: **design fixed from Tide's agent pack; not yet executed in this checkout.**
+Sources were read on 22 October 2026 from the Tide MCP (`@tideorg/mcp` 1.9.33): scenario
+`relationship-attestation`, template `templates/relationship-attestation/relationship.ts`,
+canon `custom-contracts`, `iga-change-requests-api` and `tidecloak-bootstrap`. Ask the MCP
+(`tide_scenario`, `tide_scenario_bootstrap`, `tide_playbook`) for exact commands; do not
+invent Tide APIs. A gate stays "Not run" until it has been run against the real realm.
 
-The snippets below describe the intended adapter contract and are illustrative
-pseudocode until they are replaced with the exact TideCloak SDK calls used by the
-prototype. The application must keep TideCloak calls behind one adapter so the demo
-does not claim unsupported SDK behavior.
+## The mechanism: one care group per record
 
-### 1. Patient Identity (Onboarding)
-```javascript
-// Patient enters on first visit
-const patient = await tide.clients.create({
-  // No password — identity is wallet-based
-  // Attributes: name, role (patient), issuedAt
-});
+Care Passport uses the ORK's **built-in contract `RelationshipAttestation:1`**. Nothing is
+written, compiled or deployed. A realm admin approves one policy per record; from then
+on the Tide network (ORKs, threshold 14-of-20) decides every encryption and decryption.
 
-// Patient gets unique DID (Decentralized Identifier)
-console.log(patient.did); // did:tide:...
-```
+| Concept | Care Passport value |
+|---|---|
+| Record id (`assignmentId`, and the **only** tag on its ciphertext) | `pa-referral`, `pa-careplan`, `pa-pathology` |
+| Care group (policy subject, `subjectType: Group`) | `/pa-referral`, `/pa-careplan`, `/pa-pathology` (full path as in the `groups` claim) |
+| Policy `roles` | `["_tide_encryptor","_tide_decryptor"]` (read-write policy) |
+| Patient A | Member of all three groups; realm roles `_tide_encryptor` + `_tide_decryptor` |
+| GP A, GP B, Physio A | Realm role `_tide_decryptor` only, so clinicians can read but never write |
+| Stewards (admins) | `tide-realm-admin`; **none** of the `_tide_*` crypto roles and no group membership |
 
-### 2. Record Encryption & Storage
-```javascript
-// When patient uploads a record
-const record = await tide.records.encryptAndStore({
-  title: "Referral - Dr. Smith",
-  content: syntheticReferralContent, // or IPFS hash
-  // Encryption and capability issuance are handled by TideCloak.
-  accessPattern: "role-scoped", // GP, Physio, etc.
-  // TideCloak automatically:
-  // - Generates per-record encryption key
-  // - Binds access to patient consent + authenticated clinician role
-  // - Stores metadata only (ciphertext on IPFS/DB)
-});
-```
+On every request the network checks:
 
-### 3. Clinician Access Flow
-```javascript
-// Clinician authenticates with their role
-const clinician = await tide.clinicians.authenticate({
-  role: "GP", // Their TideCloak role
-  // No password — role is cryptographically verified
-});
+- every tag equals the record id;
+- the caller holds `_tide_encryptor` (encrypt) or `_tide_decryptor` (decrypt), and the
+  policy's `roles` list that operation;
+- the caller's credential has a `groups` entry equal to the record's group;
+- the policy has not expired.
 
-// Patient reviews access request on dashboard
-// Patient clicks "Grant" → TideCloak generates decryption key
-const grant = await tide.access.grant({
-  recordId: "rec_001",
-  toRole: "GP",
-  // TideCloak issues a record-scoped capability after consent.
-  // The application does not implement key derivation itself.
-});
+Consequences that make the demo credible:
 
-// Authorized clinician client can now decrypt
-const decrypted = await tide.decrypt({
-  recordId: "rec_001",
-  clinicianRole: "GP"
-});
-// Returns plaintext only if role matches + key valid
-```
+- **Selective sharing:** sharing the referral means adding GP A to `/pa-referral`. GP B
+  holds the same `_tide_decryptor` role but is not in the group, so the network refuses
+  GP B, even if GP B obtains the ciphertext and the policy.
+- **Withdrawal:** removing Physio A from `/pa-careplan` makes the next decryption fail
+  once Physio A's credential refreshes. Record the measured delay.
+- **No lone administrator:** with IGA on, adding or removing a group member and granting
+  a role are governed change requests. With three stewards the quorum is two, so one
+  admin's request stays `PENDING` and that admin still cannot decrypt.
+- **Server holds ciphertext only:** the app server and its JSON store never hold a key.
+  A full database copy does not decrypt.
 
-### 4. Revocation (Patient Power)
-```javascript
-// Patient revokes access at any time
-await tide.access.revoke({
-  recordId: "rec_001",
-  fromRole: "GP"
-});
+## SDK surface (from the pack, pin versions when installing)
 
-// Immediate effect: decryption key invalidated
-// Clinician tries decrypt → "access_denied"
-// Audit log updated: "access revoked by patient"
-```
+Copy `templates/relationship-attestation/relationship.ts` into `src/lib/tide/`. It needs
+`@tidecloak/js`, `@tideorg/js` and `heimdall-tide` in addition to the template's
+`@tidecloak/nextjs`. Resolve current versions with `npm view <pkg> version`. Never use
+0.99.x or anything below 0.14.17, and match the SDK to the server (canon `version-policy`).
 
-### 5. Policy Enforcement Examples
+| Call (browser only) | Who | Purpose |
+|---|---|---|
+| `signRelationshipPolicy({ vendorId, subject: { type: "Group", id: "/pa-referral" }, recordId: "pa-referral", access: "read-write" }, adminPolicy)` | Steward, in the Tide enclave | The approval **is** the grant of the record to its group. Returns signed policy (base64) |
+| `encryptForRecord(text, recordId, policyB64)` | Patient A | Ciphertext is stored by the app |
+| `decryptForRecord(ciphertext, recordId, policyB64)` | Any caller; the network decides | Plaintext stays in browser memory |
+| `describeRelationshipPolicy(policyB64)` | Server, before storing | Confirm subject, record and contract id |
+| `readSession()` | Browser | Shows the caller's `groups` and crypto roles (UI hint only) |
 
-```javascript
-// Intended policy: GP can only decrypt referral records, not pathology.
-// Exact policy syntax must match the installed TideCloak SDK.
-tide.policies.define({
-  target: "records",
-  effect: "decrypt",
-  when: {
-    role: "GP",
-    // Allow only if record.type === "referral"
-    condition: (record) => record.type === "referral"
-  },
-  // Otherwise: access_denied
-});
+`adminPolicy` comes from
+`GET {auth-server-url}/admin/realms/{realm}/iga/role-policies/name/tide-realm-admin`
+(field `policy`, base64), fetched by the app server with the **steward's own token**.
 
-// Policy: Patient can revoke any clinician access
-tide.policies.define({
-  target: "access",
-  effect: "revoke",
-  by: "patient",
-  always: true // Patient always has revoke power
-});
-```
+A refusal arrives as `TIDE-TIDEJS-NET-THRESHOLD_FAILURE` ("Could not reach enough VVK
+ORKs"). That **is** the contract's refusal, not an outage: show the `cause` text
+(for example `'/pa-referral' group not found in doken.`) and do not retry.
 
-### 6. Emergent Authority Guarantees
-| Scenario | TideCloak Behavior |
-|----------|-------------------|
-| **Admin tries to read all records** | ❌ Cannot — no master key; keys bound to patient+clinician |
-| **Clinician tries other clinician's records** | ❌ Denied — role-scoped keys only |
-| **Patient revokes Physio access** | ✅ Immediate — Physio can no longer decrypt |
-| **Platform goes offline** | Demo does not claim offline decryption; recovery behavior depends on the configured TideCloak client/session |
-```
+## Pack rules that apply here
+
+- `vendorId` comes from `data/tidecloak.json`. Policies use it as the key id.
+- Realm roles `_tide_encryptor`/`_tide_decryptor` and the `groups` mapper (access token,
+  full path on) ship in the pack's realm template. Never put the crypto roles in the
+  default-roles composite.
+- `hasRealmRole()` and route guards are UI only. Real authorization is
+  `verifyTideJWT()` (embedded `config.jwk`, never remote JWKS) + DPoP via the template's
+  `withAuth`/`withRole` wrappers.
+- Use `IAMService.secureFetch` with absolute URLs for DPoP-bound calls (adapter rule).
+- Master-admin credentials appear only in bootstrap scripts and `.env`, never in app code.
+- Never proxy IGA approvals through the app server: each steward approves in their own
+  browser (TideCloak console or a page calling TideCloak with their own token).
+- Self-encryption (`_tide_<tag>.selfencrypt`) is user-bound and **cannot** be upgraded to
+  sharing. Do not use it for shared records.
+
+## Governance and quorum
+
+- The initial admin from `npm run init` is the first steward (threshold 1). Do every
+  setup change while the threshold is still 1: sign-ups, role grants, groups, Patient A's
+  memberships, and the three policies.
+- Then link two more stewards and grant them `tide-realm-admin`. The commit gate uses
+  the threshold in the signed admin policy, which changes only when a
+  `REGEN_ADMIN_POLICY` request commits. The projected value is
+  `max(1, floor(0.7 × admins))`, which is 2 for three admins. **Verify** that a new
+  change request shows `threshold: 2` before claiming quorum.
+- The filer may approve their own request, so a lone steward's request reaches 1 of 2 and
+  stays `PENDING`.
+
+## Gates: run in this order, record results in `docs/EVIDENCE.md`
+
+| Gate | Experiment | Pass when | Status |
+|---|---|---|---|
+| G0 contract | Steward signs the `pa-referral` policy | Signed bytes returned; `describeRelationshipPolicy` shows `RelationshipAttestation:1` | Not run |
+| G1 round trip | Patient A encrypts and decrypts `pa-referral` | Plaintext matches; server stored ciphertext only | Not run |
+| G2 named group | GP A (member) decrypts; GP B (not member, same role) uses the leaked-copy test | GP A succeeds; GP B refused with the group message | Not run |
+| G3 withdrawal | Remove Physio A from `/pa-careplan` (quorum), then decrypt with (a) the old session and (b) after sign-in | (b) refused; (a) measured and disclosed | Not run |
+| G4 lone admin | One steward adds themselves to `/pa-pathology` | Change request `PENDING` 1/2; their decryption refused | Not run |
+| G5 operator | Inspect `data/app-db.json` and server logs | No plaintext, no keys | Not run |
+| G6 tag binding | Encrypt with a wrong or second tag | Refused (`Tags do not contain assignmentId.`) | Not run |
+
+Optional, only if time allows: whether a lone steward can sign a *new* policy for an
+existing record while the threshold is 2. Until tested, rely on the second barrier: the
+steward also lacks `_tide_decryptor`, and granting it needs quorum.
+
+## Plan B if G0 fails (unknown contract on the network)
+
+`RelationshipAttestation:1` has been on ORK `main` since 2026-10-16. The pack marks the
+availability on other networks as ASSUMED. `tideorg/tidecloak-dev:latest` uses the
+production network.
+
+1. Post the exact error in Tide Discord `#support` (https://discord.gg/XBMd9ny2q5) at once.
+   Do not write a custom contract; only the Tide team can deploy one.
+2. Decision time: **13:30 Vietnam time**. If there is no answer, switch to the
+   `encrypted-communication` hybrid. Each user's X25519 private key is Tide
+   self-encrypted (`_tide_keys.selfencrypt/selfdecrypt`). The patient wraps a per-record
+   key to the clinician's public key in the browser. Withdrawal deletes the wrapped key
+   and, for a Tide-enforced stop, a governed change removes the clinician's
+   `selfdecrypt` role. That stop is coarse: it ends all of their access.
+3. Update the README claims to whatever was actually demonstrated.
+
+## Limits to state honestly
+
+- Granting and withdrawing need two of three stewards. The patient initiates; the
+  stewards execute. Patient-only grants would need a custom contract deployed by Tide.
+- Withdrawal takes effect when the clinician's credential refreshes (sign-in or token
+  refresh), not instantly. Plaintext already viewed or copied cannot be recalled.
+- Colluding stewards at quorum can add a member. Metadata stays visible to the operator:
+  record ids, group names, who is in which group, sizes and timing.
+- A compromised client (malicious JavaScript or device) can leak what it decrypts.
+- Demo only: synthetic people and records, local TideCloak, not for real patient data.

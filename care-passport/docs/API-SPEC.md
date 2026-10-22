@@ -1,204 +1,66 @@
-# Care Passport — API Specification
+# Care Passport — Application API (MVP)
 
-## Base URL
-`/api/care-passport` (TideCloak-enhanced endpoints)
+Status: contract for the MVP; **not implemented yet**. These are Care Passport routes,
+not Tide APIs. They organise ciphertext and requests; **the Tide network, not this API,
+decides who can decrypt** (see [TIDE-INTEGRATION](TIDE-INTEGRATION.md)).
 
-## Authentication
-All endpoints require valid TideCloak session token (`Authorization: Bearer <tide-token>`)
+## Conventions
 
-The authenticated subject and clinician role are read from the TideCloak session. The
-API must not trust a client-supplied `Clinician-Role` header. Every endpoint also
-enforces ownership: patients can manage only their own records and shares, while
-clinicians can request or read only records exposed to their authenticated role.
+- Next.js route handlers under `/api`, each wrapped in the template's `withAuth` or
+  `withRole`, which verify the TideCloak JWT (embedded `jwk`) and the DPoP proof.
+  Browser calls use `IAMService.secureFetch` with absolute URLs.
+- Identity comes only from the verified token: `sub`, `preferred_username`, `groups`,
+  `realm_access.roles`, and `resource_access["realm-management"].roles` (steward =
+  `tide-realm-admin`). Never from a body field or header.
+- Labels (`displayName`, `kind`: `patient` | `gp` | `physio`) come from
+  `fixtures/directory.json`, keyed by username. Provisioned records come from
+  `fixtures/records.json`.
+- Bodies are JSON; the maximum body size is 256 KB. Responses carrying ciphertext use
+  `Cache-Control: no-store`. Never accept, return or log clinical plaintext or tokens.
 
-Unless stated otherwise, successful responses use `2xx` status codes. Errors use this
-shape:
+## Store: `data/app-db.json` (gitignored)
 
-```json
-{
-  "error": "access_denied",
-  "message": "Your role does not authorize access to this record"
-}
-```
+| Collection | Fields |
+|---|---|
+| `records` | `id` (`pa-referral` …), `owner` (username), `group` (`/pa-referral`), `label` (`Referral`, `Care plan`, `Pathology`), `ciphertext` (string or null), `updatedAt` |
+| `policies` | `recordId`, `policy` (signed base64), `subject` (`/pa-…`), `signedBy`, `createdAt` |
+| `requests` | `id`, `recordId`, `owner`, `recipient` (username), `action` (`share` \| `withdraw`), `purpose`, `status` (`requested` \| `done` \| `rejected`), `note`, `createdAt`, `updatedAt` |
+| `events` | `id`, `at`, `actor`, `recordId`, `type`, `source` (`application` \| `client_report`), `detail` |
 
-Common errors are `400 invalid_request`, `401 unauthenticated`, `403 access_denied`,
-`404 not_found`, and `409 share_conflict`.
+Writes are serialized: load, change, then write to a temp file and rename it into place.
 
 ## Endpoints
 
-### POST /records
-Create a synthetic patient record. The client encrypts the content before sending it;
-the API stores metadata and ciphertext only.
+| Method and path | Allowed caller | Behaviour |
+|---|---|---|
+| `GET /api/config` | Anyone (template) | Public client config |
+| `GET /api/me` | Signed in | `{ username, displayName, kind, groups, cryptoRoles, isSteward }` |
+| `GET /api/directory` | Patient | Clinicians only: `[{ username, displayName, kind }]` |
+| `GET /api/records` | Signed in | Patient: own records. Others: records whose `group` is in the caller's verified `groups` claim. Each item: `{ id, label, group, ciphertext, policy }` (`policy` only if signed) |
+| `PUT /api/records/:id` | Record owner | Body `{ ciphertext }`. 404 if the record is not provisioned or not theirs |
+| `GET /api/admin-policy` | Steward | Fetches `GET {auth-server-url}/admin/realms/care-passport/iga/role-policies/name/tide-realm-admin` **with the caller's own token** and returns `{ policy }` (base64) |
+| `POST /api/policies` | Steward | Body `{ recordId, policy }`. Record must be provisioned. Store the subject and contract id shown by `describeRelationshipPolicy`, decoded in the steward's browser if the SDK will not run on the server. The network enforces the policy regardless |
+| `POST /api/requests` | Record owner | Body `{ recordId, recipient, action, purpose }`; the recipient must be a directory clinician. Creates status `requested` and an event |
+| `GET /api/requests` | Patient (own) or steward (all) | Lists requests, newest first |
+| `PATCH /api/requests/:id` | Steward | Body `{ status: "done" \| "rejected", note }`. Bookkeeping after acting in TideCloak; grants nothing |
+| `GET /api/demo/leaked/:recordId` | Signed in | **Demo only.** Returns `{ ciphertext, policy }` for any record, simulating a full database leak or compromised server. Logs an event |
+| `POST /api/events` | Signed in | Client report `{ recordId, type: "decrypt_ok" \| "decrypt_refused", detail }`. The detail is the refusal `cause`, never plaintext |
+| `GET /api/events` | Patient (own records) or steward (all) | Activity list labelled by `source` |
 
-**Body:**
-```json
-{
-  "title": "Referral - Dr. Smith",
-  "type": "referral",
-  "ciphertext": "<encrypted-payload>",
-  "contentType": "text/plain"
-}
-```
+## Errors
 
-`type` is one of `referral`, `pathology`, or `care-plan`. The response returns the
-record ID and metadata, never plaintext content.
+| HTTP | `error` | Meaning |
+|---|---|---|
+| 400 | `invalid_request` | Bad fields, unknown recipient, or body too large |
+| 401 | `unauthenticated` | Missing or invalid token or DPoP proof |
+| 403 | `forbidden` | Signed in but not allowed (for example a non-steward calling a steward route) |
+| 404 | `not_found` | Unknown record, or not visible to the caller |
 
-**Response:**
-```json
-{
-  "record": {
-    "id": "rec_001",
-    "title": "Referral - Dr. Smith",
-    "type": "referral",
-    "status": "private"
-  }
-}
-```
+A decryption refusal is not an API error: it happens in the browser, comes from the
+network (`TIDE-TIDEJS-NET-THRESHOLD_FAILURE` with a `cause`) and is shown verbatim.
 
-### GET /records
-List the authenticated patient's record metadata and sharing status. Clinicians receive
-only records they are already authorized to discover.
+## Deferred (not in the MVP)
 
-**Query params:**
-- `type` (optional): "referral" | "pathology" | "care-plan"
-- `sharedWith` (optional): filter by clinician role
-
-**Response:**
-```json
-{
-  "records": [
-    {
-      "id": "rec_001",
-      "title": "Referral - Dr. Smith",
-      "type": "referral",
-      "status": "active",
-      "shares": [
-        {
-          "shareId": "share_001",
-          "clinicianRole": "GP",
-          "status": "active",
-          "sharedAt": "2024-03-15T10:30:00Z",
-          "expiresAt": null
-        }
-      ],
-      "sharedAt": "2024-03-15T10:30:00Z",
-      "expiresAt": null,
-      "accessCount": 2
-    }
-  ]
-}
-```
-
-### POST /records/:id/share
-Share a record with a clinician role.
-
-**Body:**
-```json
-{
-  "clinicianRole": "GP",
-  "expiresAt": "2024-04-15T10:30:00Z"
-}
-```
-
-**Response:**
-```json
-{
-  "shareId": "share_001",
-  "status": "pending_patient_approval"
-}
-```
-
-This endpoint is used when a clinician requests access. A patient-initiated share may
-skip the pending state and become `active` after the patient authorization succeeds.
-The same record cannot have two active shares for the same authenticated clinician
-role.
-
-### POST /records/:id/approve
-Patient approves a share request.
-
-**Body:**
-```json
-{
-  "shareId": "share_001",
-  "approve": true
-}
-```
-
-**Response:**
-```json
-{
-  "status": "active",
-  "expiresAt": "2024-04-15T10:30:00Z"
-}
-```
-
-When `approve` is `false`, the share becomes `denied` and no key or capability is
-issued.
-
-### POST /records/:id/revoke
-Revoke clinician access.
-
-**Body:**
-```json
-{
-  "shareId": "share_001"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "revoked",
-  "message": "Clinician can no longer decrypt this record"
-}
-```
-
-### GET /records/:id
-Return a specific record for an authorized clinician. The API returns ciphertext or a
-TideCloak decryption capability; plaintext decryption happens in the authorized
-client/session. This preserves the claim that the platform operator cannot read the
-record.
-
-**Response (if authorized):**
-```json
-{
-  "record": {
-    "id": "rec_001",
-    "title": "Referral - Dr. Smith",
-    "ciphertext": "<encrypted-payload>",
-    "contentType": "text/plain",
-    "decryption": {
-      "status": "authorized",
-      "expiresAt": "2024-04-15T10:30:00Z"
-    }
-  }
-}
-```
-
-**Response (if not authorized):**
-```json
-{ "error": "access_denied", "message": "Your role does not authorize access to this record" }
-```
-
-### GET /audit/log
-Get access audit log (patient only).
-
-**Response:**
-```json
-{
-  "logs": [
-    {
-      "recordId": "rec_001",
-      "clinicianRole": "GP",
-      "action": "granted_access",
-      "timestamp": "2024-03-18T14:20:00Z",
-      "actorId": "did:tide:clinician-001",
-      "reason": "Initial consultation",
-      "shareId": "share_001"
-    }
-  ]
-}
-```
-
-Audit entries are append-only. The patient can view them; operators can monitor
-operational metadata but cannot decrypt record content.
+Idempotency keys, an operations/reconciliation table, cursor pagination, consent
+versions, Tide-enforced purpose/expiry, a server-side IGA governance panel, PostgreSQL
+and migrations. Revisit only after the four demo moments work.
