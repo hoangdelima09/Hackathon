@@ -10,7 +10,7 @@ Full steps, including the one-time TideCloak bootstrap and demo identities, are 
 [docs/SETUP.md](docs/SETUP.md). Short version, after setup:
 
 ```bash
-npm run dev    # http://localhost:3100 (TideCloak on http://localhost:8080)
+npm run dev    # http://localhost:4300 (TideCloak on http://localhost:8080)
 ```
 
 ## Docs

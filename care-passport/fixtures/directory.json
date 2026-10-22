@@ -1,0 +1,9 @@
+{
+  "patient-a": { "displayName": "Linh Tran", "kind": "patient" },
+  "gp-a": { "displayName": "Dr Alex Nguyen", "kind": "gp" },
+  "gp-b": { "displayName": "Dr Bao Pham", "kind": "gp" },
+  "physio-a": { "displayName": "Sam Le", "kind": "physio" },
+  "admin": { "displayName": "Steward 1 (care governance)", "kind": "steward" },
+  "steward-b": { "displayName": "Steward 2 (care governance)", "kind": "steward" },
+  "steward-c": { "displayName": "Steward 3 (care governance)", "kind": "steward" }
+}

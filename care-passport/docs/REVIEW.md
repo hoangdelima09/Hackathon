@@ -18,7 +18,7 @@ xong trước hạn:
 | P0 | Cơ chế chia sẻ giữa các user bị ghi là "unresolved", trong khi Tide đã có pattern chính thức: contract dựng sẵn `RelationshipAttestation:1`, mỗi record một group, kèm helper `relationship.ts` | Viết lại [TIDE-INTEGRATION](TIDE-INTEGRATION.md) theo pack, gate G0–G6 cụ thể và Plan B |
 | P0 | Yêu cầu "patient tự cấp và thu quyền, không cần admin" **không khả thi** với contract dựng sẵn: grant phải qua admin hoặc quorum, còn owner-grant cần contract riêng do Tide deploy | Mô hình mới: patient yêu cầu, 2/3 steward thực thi, không ai làm được một mình. Sửa ARCHITECTURE, API-SPEC, DESIGN, README |
 | P0 | Thiếu các bước bắt buộc phải do người làm: email license, đồng ý T&C, invite link, tạo tài khoản Tide cho từng nhân vật, duyệt trong enclave | Bảng H1–H7 trong BUILD-PLAN, CLAUDE.md và SETUP |
-| P1 | Môi trường: cổng 3000 đã bị chiếm; init script dùng `sudo` nên agent bị treo; chạy lại init sẽ xóa realm; MCP npx bị timeout 30 giây | Dùng cổng 3100, bỏ `sudo`, ghi rõ "chỉ init một lần", chuyển `.mcp.json` sang MCP hosted (đã ✔ Connected) |
+| P1 | Môi trường: cổng 3000 và 3100 đã bị dùng; init script dùng `sudo` nên agent bị treo; chạy lại init sẽ xóa realm; MCP npx bị timeout 30 giây | Dùng cổng 4300, bỏ `sudo`, ghi rõ "chỉ init một lần", chuyển `.mcp.json` sang MCP hosted (đã ✔ Connected) |
 | P1 | Repo gốc không có README nên giám khảo không thấy overview; dòng "Built with" lệch template | Thêm `README.md` ở gốc đúng template (288/300 từ). `care-passport/README.md` thành README cho developer |
 | P1 | Không có CLAUDE.md nên AI không tự nạp quy tắc dự án và quy tắc Tide | Thêm `CLAUDE.md` ở gốc repo |
 | P2 | `.DS_Store` bị commit; chưa có `.gitignore` cho `.env` và `data/tidecloak.json` | Đã xóa `.DS_Store` và thêm `.gitignore` |

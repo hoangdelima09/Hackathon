@@ -1,0 +1,12 @@
+# The Care Passport app. TideCloak runs separately in the `tidecloak` container that
+# `npm run init` creates on port 8080 (run init once, before building this image).
+services:
+  app:
+    build: .
+    image: care-passport-app:local
+    container_name: care-passport-app
+    ports:
+      - "127.0.0.1:4300:4300"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

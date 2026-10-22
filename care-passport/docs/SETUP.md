@@ -7,7 +7,7 @@ and versions once a clean run succeeds. The project build plan is in
 ## Prerequisites
 
 - Linux or macOS with Node.js 18+ (tested target: Node 26), npm, Docker, `curl`, `jq`.
-- Free ports **8080** (TideCloak) and **3100** (app). The app uses 3100 because 3000 was
+- Free ports **8080** (TideCloak) and **4300** (app). The app uses 4300 because 3000 and 3100 were
   occupied on the development machine. Any free port works if `CLIENT_APP_URL` matches.
 - A browser that allows pop-ups for `localhost:8080` (the Tide enclave opens in one).
 - Separate browser profiles for each demo identity. Each Tide session is per browser.
@@ -32,7 +32,7 @@ Fill in `.env` yourself. It is gitignored:
 ## 2. Start and bootstrap TideCloak (once)
 
 ```bash
-CLIENT_APP_URL=http://localhost:3100 npm run init
+CLIENT_APP_URL=http://localhost:4300 npm run init
 ```
 
 The script starts `tideorg/tidecloak-dev:latest` on port 8080. It then creates the
@@ -43,7 +43,7 @@ It pauses at an **invite link**: open it and create the first steward's Tide acc
 ## 3. Run the app
 
 ```bash
-npm run dev            # http://localhost:3100
+npm run dev            # http://localhost:4300
 ```
 
 Check the setup until it reports `RESULT: OK` (the pack files are not committed, so
@@ -51,7 +51,7 @@ fetch them first):
 
 ```bash
 mkdir -p .tide-pack && curl -fsSL https://mcp.tide.org/pack/templates.tgz | tar -xz -C .tide-pack
-bash .tide-pack/templates/shared/tide-doctor.sh --url http://localhost:3100
+bash .tide-pack/templates/shared/tide-doctor.sh --url http://localhost:4300
 ```
 
 ## 4. Demo identities and governance (in this order)

@@ -30,7 +30,7 @@ README ≤300 từ. Bản demo phải chứng minh được bốn khoảnh khắ
 
 | Giờ | Phase | Xong khi |
 |---|---|---|
-| 11:30–12:15 | **A.** Scaffold, init, doctor, login | `tide-doctor` báo `RESULT: OK` với `--url http://localhost:3100` và admin login được |
+| 11:30–12:15 | **A.** Scaffold, init, doctor, login | `tide-doctor` báo `RESULT: OK` với `--url http://localhost:4300` và admin login được |
 | 12:15–13:00 | **B.** Trang ký policy, gate G0, tạo tài khoản, roles, groups, 3 policy | Ký được policy `pa-referral` (G0). Patient ở cả 3 group, Physio ở `/pa-careplan` |
 | 13:00–15:00 | **C.** Các màn hình patient, clinician, steward và API | Luồng chạy end-to-end với Tide thật |
 | 15:00–15:30 | **D.** Thêm steward-b/c, threshold 2, chạy G1–G6 | `docs/EVIDENCE.md` có kết quả thật của từng gate |
@@ -50,15 +50,15 @@ cd /home/duchoang2407/Work/Hackathon/care-passport
 mkdir -p .tide-pack && curl -fsSL "https://mcp.tide.org/pack/templates.tgz" | tar -xz -C .tide-pack
 cp -R --update=none .tide-pack/templates/nextjs-customer-portal/. ./   # không ghi đè README.md và docs/
 # package.json: "name": "care-passport"
-#   scripts: "dev": "next dev --webpack -p 3100", "start": "next start -p 3100"
+#   scripts: "dev": "next dev --webpack -p 4300", "start": "next start -p 4300"
 npm install
 cp .env.example .env    # bước H2 do người dùng điền
-CLIENT_APP_URL=http://localhost:3100 npm run init   # chạy nền, chuyển invite link cho người dùng
+CLIENT_APP_URL=http://localhost:4300 npm run init   # chạy nền, chuyển invite link cho người dùng
 ```
 
 Lưu ý môi trường:
 
-- **Cổng 3000 đang bị container `webdayhoc-app` chiếm.** Dùng 3100 cho app và cho
+- **Cổng 3000 (container `webdayhoc-app`) và 3100 (web khác của bạn) đã có người dùng.** Dùng 4300 cho app và cho
   `CLIENT_APP_URL`. Không dừng container của dự án khác. TideCloak dùng cổng 8080.
 - `scripts/init-tidecloak.sh` có ba lệnh `sudo` (`rm`, `chown`, `docker run`) sẽ treo agent
   ở bước hỏi mật khẩu. User đang ở nhóm `docker` và có uid 1000 trùng với container, nên

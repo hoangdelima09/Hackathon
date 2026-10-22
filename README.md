@@ -29,7 +29,7 @@ Status: in progress (results in [EVIDENCE](care-passport/docs/EVIDENCE.md)). Wat
 ## Setup
 
 See [care-passport/docs/SETUP.md](care-passport/docs/SETUP.md): Node.js, Docker, local
-TideCloak on port 8080 and the app on port 3100. The demo video will be at
+TideCloak on port 8080 and the app on port 4300. The demo video will be at
 [`demo.mp4`](demo.mp4).
 
 More: [architecture](care-passport/docs/ARCHITECTURE.md) ·

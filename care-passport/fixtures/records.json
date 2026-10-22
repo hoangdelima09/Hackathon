@@ -1,0 +1,5 @@
+[
+  { "id": "pa-referral", "owner": "patient-a", "group": "/pa-referral", "label": "Referral" },
+  { "id": "pa-careplan", "owner": "patient-a", "group": "/pa-careplan", "label": "Care plan" },
+  { "id": "pa-pathology", "owner": "patient-a", "group": "/pa-pathology", "label": "Pathology" }
+]

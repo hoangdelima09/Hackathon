@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.tide-pack
+docs
+*.md
+
+# Secrets and local state never go into the image
+.env
+.env.*
+!.env.example
+data/keycloakdb*
+data/app-db.json
+data/*.tmp
