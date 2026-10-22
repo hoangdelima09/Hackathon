@@ -2,6 +2,11 @@
 
 ## Integration Pattern: Session-Bound Emergent Authority
 
+The snippets below describe the intended adapter contract and are illustrative
+pseudocode until they are replaced with the exact TideCloak SDK calls used by the
+prototype. The application must keep TideCloak calls behind one adapter so the demo
+does not claim unsupported SDK behavior.
+
 ### 1. Patient Identity (Onboarding)
 ```javascript
 // Patient enters on first visit
@@ -20,11 +25,11 @@ console.log(patient.did); // did:tide:...
 const record = await tide.records.encryptAndStore({
   title: "Referral - Dr. Smith",
   content: syntheticReferralContent, // or IPFS hash
-  // Encryption: key derived from patient session + clinician role pattern
+  // Encryption and capability issuance are handled by TideCloak.
   accessPattern: "role-scoped", // GP, Physio, etc.
   // TideCloak automatically:
   // - Generates per-record encryption key
-  // - Binds key to patient identity + clinician role
+  // - Binds access to patient consent + authenticated clinician role
   // - Stores metadata only (ciphertext on IPFS/DB)
 });
 ```
@@ -42,11 +47,11 @@ const clinician = await tide.clinicians.authenticate({
 const grant = await tide.access.grant({
   recordId: "rec_001",
   toRole: "GP",
-  // Key is: f(patient_session_key, clinician_role, timestamp)
-  // Invalidated immediately if patient revokes
+  // TideCloak issues a record-scoped capability after consent.
+  // The application does not implement key derivation itself.
 });
 
-// Clinician can now decrypt
+// Authorized clinician client can now decrypt
 const decrypted = await tide.decrypt({
   recordId: "rec_001",
   clinicianRole: "GP"
@@ -70,7 +75,8 @@ await tide.access.revoke({
 ### 5. Policy Enforcement Examples
 
 ```javascript
-// Policy: GP can only decrypt referral records, not pathology
+// Intended policy: GP can only decrypt referral records, not pathology.
+// Exact policy syntax must match the installed TideCloak SDK.
 tide.policies.define({
   target: "records",
   effect: "decrypt",
@@ -97,5 +103,5 @@ tide.policies.define({
 | **Admin tries to read all records** | ❌ Cannot — no master key; keys bound to patient+clinician |
 | **Clinician tries other clinician's records** | ❌ Denied — role-scoped keys only |
 | **Patient revokes Physio access** | ✅ Immediate — Physio can no longer decrypt |
-| **Platform goes offline** | ✅ Patient still owns keys; can decrypt locally with recovery phrase |
+| **Platform goes offline** | Demo does not claim offline decryption; recovery behavior depends on the configured TideCloak client/session |
 ```

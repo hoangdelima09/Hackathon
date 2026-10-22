@@ -46,7 +46,7 @@ TideCloak provides the emergent authority layer: decryption keys are bound to pa
 
 ### 5. Prototype & storytelling
 <!-- What does your prototype demonstrate today? Describe the key interaction judges should look for. -->
-The demo shows three 20-second scenarios: (1) patient shares a referral with a GP, (2) patient revokes a physiotherapist's access, (3) a physiotherapist attempts to access a referral they're not authorized for. Judges should see the TideCloak-enforced access control in action — specifically, the immediate revocation and role-based denial.
+The two-minute demo shows three scenarios: (1) 60 seconds to share a referral with a GP, (2) 30 seconds to revoke a physiotherapist's access, and (3) 30 seconds for a physiotherapist to attempt access to a referral they are not authorized for. Judges should see the TideCloak-enforced access control in action, specifically role-based authorization and the revocation response.
 ```
 
 ## Submission Checklist
@@ -59,6 +59,8 @@ The demo shows three 20-second scenarios: (1) patient shares a referral with a G
 - [ ] Video covers 3 scenarios from DEMO-SCENARIOS.md
 - [ ] TideCloak integrated (visible in code, not just wrapper)
 - [ ] Synthetic/mocked data used (no real PHI)
+- [ ] README claims match the implemented prototype and verified TideCloak adapter
+- [ ] API docs match the actual request/response behavior
 - [ ] Submission form: https://forms.gle/HRHYjnqB86j1LFS97
 
 ## Deadlines

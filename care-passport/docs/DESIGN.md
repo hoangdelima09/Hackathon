@@ -16,6 +16,16 @@
 - Record types: "Referral", "Pathology Result", "Care Plan"
 - Each has consistent UI card design
 
+## Required States
+
+- Loading: show a stable skeleton while records or access status are fetched.
+- Empty: explain that no records exist and provide a `Create synthetic record` action.
+- Pending: show who requested access, the record, requested purpose, and expiry.
+- Active: show role, grant time, expiry, and a clearly available revoke action.
+- Denied/revoked: show the reason and audit timestamp; do not expose ciphertext or
+	record content.
+- Error: show the API error message without exposing tokens, keys, or raw ciphertext.
+
 ## Information Architecture
 
 ### Record Card (Patient Dashboard)
@@ -56,3 +66,6 @@ Purpose: Initial consultation
 - Warning: Orange (#f6e05e)
 - Error: Red (#f87171)
 - Background: Slate gray gradient
+
+The contrast ratio must remain readable in both themes. Status must not rely on color
+alone: pair each state with text and an icon or label.

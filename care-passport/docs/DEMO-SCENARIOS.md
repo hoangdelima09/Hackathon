@@ -1,5 +1,8 @@
 # Care Passport — Demo Scenarios (2-Minute Video Structure)
 
+The video contains three scenarios totaling two minutes: 60 seconds, 30 seconds,
+and 30 seconds. All records and identities are synthetic.
+
 ## Scenario 1: Share Referral with GP (1 min)
 ### Setup
 - Patient has "Referral - Dr. Smith" record encrypted

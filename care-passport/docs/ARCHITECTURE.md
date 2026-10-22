@@ -3,6 +3,10 @@
 ## Overview
 A patient-controlled health-record application where patients selectively share referrals, pathology results, or care plans with specific clinicians. **TideCloak** provides session-bound end-to-end encryption and clinician-role enforcement, ensuring the platform operator cannot read any patient data.
 
+The prototype uses synthetic records only. Record plaintext is created or encrypted
+in the patient client. The API stores metadata and ciphertext; it never returns
+plaintext to the platform operator.
+
 ## Key Components
 
 ### 1. Client (Frontend)
@@ -19,22 +23,25 @@ A patient-controlled health-record application where patients selectively share 
 
 ### 3. Data Flow
 ```
-Patient Upload
-  → Record encrypted with patient's TideCloak session key
-  → Store metadata (title, type, synthetic content) in DB
-  → Encryption keys derived from: patient_id + clinician_role + expiry
+Patient creates record
+  → Client encrypts synthetic content through TideCloak
+  → Store metadata and ciphertext in DB/IPFS
 
 Clinician Access Request
   → Clinician authenticates via TideCloak (role: "GP", "Physio", etc.)
   → Patient reviews request on dashboard
-  → Patient grants access → TideCloak generates decryption key: f(patient_key, clinician_role, timestamp)
-  → Clinician can decrypt only that specific record
-  → Patient can revoke → key invalidated immediately
+  → Patient grants access → TideCloak issues a record-scoped capability
+  → Clinician client decrypts only that specific record
+  → Patient can revoke → capability is rejected immediately
 
 Audit
   → Every access logged: who, which record, timestamp, reason
-  → Logs encrypted, only patient can view summary
+  → Append-only access events are recorded; patient sees the audit history
 ```
+
+The exact key derivation and storage mechanism is delegated to TideCloak. The
+application must not derive keys directly from predictable values such as a patient
+ID, role, or timestamp.
 
 ## Trust Model
 
